@@ -71,7 +71,19 @@ if "ingredients_input" not in st.session_state:
 with st.sidebar:
     st.title("⚙️ 設定")
     api_key = st.text_input("API Key", type="password", value=st.session_state.api_key)
-    model_name = st.selectbox("模型", options=st.session_state.available_models, index=0)
+    
+    # 動態計算預設 index
+    try:
+        current_default = st.session_state.get("default_model", "")
+        d_index = st.session_state.available_models.index(current_default)
+    except (ValueError, KeyError):
+        d_index = 0
+        
+    model_name = st.selectbox(
+        "選擇 AI 大腦", 
+        options=st.session_state.available_models, 
+        index=d_index
+    )
 
 # --- 核心 AI 邏輯 ---
 def identify_ingredients(api_key, base_url, model_name, image_bytes):
