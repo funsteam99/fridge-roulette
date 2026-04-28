@@ -34,7 +34,7 @@ saved_config = load_config()
 st.set_page_config(
     page_title="冰箱大轉盤 - 星級大廚剩食料理", 
     page_icon="🍳", 
-    layout="wide",
+    layout="centered",
     initial_sidebar_state="collapsed"
 )
 
@@ -48,6 +48,13 @@ if "api_key" not in st.session_state:
 
 if "available_models" not in st.session_state:
     st.session_state.available_models = saved_config.get("available_models", ["gemini-1.5-flash", "gemini-1.5-pro", "gemma-2-9b-it"])
+
+# 預設模型邏輯
+if "default_model" not in st.session_state:
+    if "default_model" in st.secrets:
+        st.session_state.default_model = st.secrets["default_model"]
+    else:
+        st.session_state.default_model = saved_config.get("model", "gemini-1.5-flash")
 
 # 隨機挑選測試食材
 if "random_ingredients" not in st.session_state:
@@ -94,9 +101,16 @@ with st.sidebar:
         except Exception as e:
             st.sidebar.error(f"掃描失敗: {str(e)}")
 
+    # 決定下拉選單的預設 index
+    try:
+        current_model = st.session_state.default_model
+        default_index = st.session_state.available_models.index(current_model)
+    except:
+        default_index = 0
+
     selected_model = st.selectbox(
         "選擇 AI 大腦", options=st.session_state.available_models + ["自定義模型..."],
-        index=st.session_state.available_models.index(saved_config.get("model")) if saved_config.get("model") in st.session_state.available_models else 0,
+        index=default_index,
         key="model_selectbox", on_change=sync_and_save
     )
     model_name = st.text_input("自定義模型", value=saved_config.get("custom_model", ""), key="custom_model_input", on_change=sync_and_save) if selected_model == "自定義模型..." else selected_model
@@ -165,23 +179,50 @@ def get_recipes(api_key, base_url, model_name, ingredients):
         return None
 
 # --- UI 介面 ---
-st.title("🍳 冰箱大轉盤 (Fridge Roulette)")
-st.subheader("大廚已備好測試食材，直接點擊「開始料理」試試看吧！")
+st.title("🍳 冰箱大轉盤")
+st.caption("AI 驅動的星級剩食料理助手")
+
+# 手機優化：相機功能 (展示潛力)
+with st.expander("📸 拍照辨識食材 (開發中)", expanded=False):
+    st.camera_input("拍一張冰箱照片")
+    st.info("💡 目前版本請先手動輸入或點選下方食材標籤。")
+
+st.markdown("---")
+
+# 常用食材快速點選
+st.write("**快速加入常用食材：**")
+common_tags = ["雞蛋", "豆腐", "蔥花", "高麗菜", "豬肉片", "泡麵", "洋蔥", "鮪魚罐頭"]
+# 在手機上顯示為 2x4 的網格
+tag_cols = st.columns(2)
+for i, tag in enumerate(common_tags):
+    if tag_cols[i % 2].button(f"+ {tag}", key=f"tag_{tag}", use_container_width=True):
+        current = st.session_state.random_ingredients
+        if current in TEST_SAMPLES or not current.strip():
+            st.session_state.random_ingredients = tag
+        else:
+            st.session_state.random_ingredients += f", {tag}"
+        st.rerun()
+
+st.markdown(" ") # 留點間距
 
 ingredients = st.text_area(
-    "👇 輸入剩食食材：", 
+    "👇 您的食材清單：", 
     value=st.session_state.random_ingredients,
-    height=150, 
+    height=120, 
     key="ingredients_input"
 )
 
-col_actions1, col_actions2 = st.columns([1, 4])
+col_actions1, col_actions2 = st.columns(2)
 with col_actions1:
-    if st.button("🎲 換一組試試"):
+    if st.button("🎲 隨機清單", use_container_width=True):
         st.session_state.random_ingredients = random.choice(TEST_SAMPLES)
         st.rerun()
+with col_actions2:
+    if st.button("🧹 清空", use_container_width=True):
+        st.session_state.random_ingredients = ""
+        st.rerun()
 
-if st.button("🔥 開始料理轉盤！", use_container_width=True):
+if st.button("🔥 開始料理轉盤！", type="primary", use_container_width=True):
     if ingredients.strip():
         with st.spinner(f"👨‍🍳 大廚正在廚房忙碌中..."):
             result = get_recipes(st.session_state.api_key, base_url, model_name, ingredients)
