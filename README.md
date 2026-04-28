@@ -1,59 +1,50 @@
-# 🍳 冰箱大轉盤 (Fridge Roulette) - 星級大廚剩食料理
+# 🍳 冰箱大轉盤 (Fridge Roulette) - v8.0 星級大廚視覺辨識版
 
-![Fridge Roulette](https://img.shields.io/badge/AI-Gemini%20%2F%20Gemma-orange)
+![AI-Powered](https://img.shields.io/badge/AI-Gemma%20%2F%20Gemini-orange)
 ![Streamlit](https://img.shields.io/badge/UI-Streamlit-blue)
-![Deployment](https://img.shields.io/badge/Deployed-Streamlit%20Cloud-green)
-![PWA](https://img.shields.io/badge/Mobile-PWA%20Ready-blue)
+![PWA](https://img.shields.io/badge/Mobile-PWA%20Ready-green)
+![Stability](https://img.shields.io/badge/Status-Robust%20Parsing-brightgreen)
 
-> **「冰箱裡沒有垃圾，只有還沒被發現的奇蹟。」** —— 20 年資歷創意大廚
+> **「大廚不僅有手藝，更有看一眼食材就能成菜的靈感。」** —— 專為剩食打造的 AI 廚房助手
 
-這是一個由 AI 驅動的創意料理助手，專門解決「冰箱剩一堆食材卻不知道煮什麼」的世紀難題。透過 Google Gemini 或 Gemma 模型的強大運算力，我們為每一份剩食注入靈魂。
+本專案是一個深度整合 Google 多模態模型與 Streamlit 的智慧料理應用。透過 **v8.0 兩階段辨識流程**，使用者可以先拍攝冰箱照片，由 AI 大廚初步清點食材後，進行人工微調，最後產出三道五星級創意食譜。
 
-## ✨ 特色功能
+## ✨ v8.0 重大更新與功能亮點
 
-- **👨‍🍳 20 年星級大廚人格**：專業、幽默且充滿熱情，設計三道風格迥異的創意料理。
-- **📱 原生 APP 體驗 (PWA)**：優化行動端介面，隱藏瀏覽器選單與浮水印，支援「加入主畫面」以全螢幕原生感運行。
-- **🧠 大廚內心獨白**：完整呈現 AI 的思考過程 (Thinking Process)，增加生成內容的透明度與趣味性。
-- **📸 智慧潛力介面**：預留相機拍照功能介面，展現未來結合視覺辨識的擴充性。
-- **⚡ 觸控優化設計**：加入「常用食材快速標籤」與「滿版按鈕」，大幅提升單手操作流暢度。
-- **☁️ 雲端自動載入**：支援 Streamlit Secrets，實現「開啟即用」的零設定 Demo 體驗。
+- **👨‍🍳 兩階段辨識流程 (Two-Stage Workflow)**：
+  - **Step 1 視覺清點**：利用多模態模型（如 Gemma 4 或 Gemini 1.5）掃描照片。
+  - **Step 2 人工微調**：自動將辨識結果填入清單，支援使用者編輯與標籤補充。
+  - **Step 3 創意料理**：根據最終確認的清單生成結構化食譜。
+- **🧠 大廚人格化影像辨識**：影像辨識提示詞經過精心設計（Prompt Engineering），使 AI 以專業大廚口吻掃描食材。
+- **🛡️ 系統健壯性 (Robustness)**：
+  - **強效 JSON 解析**：內建 Regex 過濾機制，可從模型混亂的回傳中精準提取食譜數據。
+  - **標籤掃除技術**：自動偵測並過濾 `<thought>` 思考標籤與 Markdown 代碼塊，確保介面純淨。
+  - **頻率限制保護**：針對 API 429 錯誤提供優雅的降級提示與模型切換建議。
+- **📱 極簡 PWA 體驗**：
+  - 隱藏所有 Streamlit 官方浮水印與選單。
+  - 支援「加入主畫面」，提供全螢幕的原生 APP 操控感。
 
-## 🚀 快速展示 (Deployment)
+## 🚀 雲端部署 (Deployment)
 
-本專案已針對 **Streamlit Community Cloud** 深度優化。
+本專案已針對 **Streamlit Community Cloud** 完美優化。
 
-### 雲端配置 (Secrets Setting)
-請在 Streamlit Cloud 後台設定以下 Secrets：
+### 雲端 Secret 設定
+請於後台設定以下變數以實現自動載入：
 ```toml
 api_key = "YOUR_GOOGLE_API_KEY"
 default_model = "gemini-1.5-flash"
 ```
 
-### 📲 手機安裝教學 (推薦)
-為獲得最佳體驗，請將此應用程式「安裝」至手機桌面：
-- **iOS (Safari)**：點擊「分享」按鈕 > 選擇「加入主畫面」。
-- **Android (Chrome)**：點擊「更多 (三個點)」 > 選擇「安裝應用程式」或「加入主畫面」。
+### 手機安裝方式
+- **iOS (Safari)**：分享 > 「加入主畫面」。
+- **Android (Chrome)**：選單 > 「安裝應用程式」。
 
-## 🛠️ 本地開發
+## 🛠️ 技術架構
 
-### 1. 複製專案與安裝
-```bash
-git clone https://github.com/funsteam99/fridge-roulette.git
-cd fridge-roulette
-pip install -r requirements.txt
-```
-
-### 2. 啟動服務
-```bash
-streamlit run app.py
-```
-
-## 📝 技術架構與安全性
-
-- **Frontend**: Streamlit (with Custom CSS Injection)
-- **AI Engine**: Google Gemini / Gemma (via OpenAI SDK)
-- **State Management**: 使用 Streamlit Callback 模式進行健壯的狀態管理，防止並發操作錯誤。
-- **Security**: 具備 Secrets 優先讀取機制，確保 API Key 不會洩漏於源碼或設定檔中。
+- **前端介面**: Streamlit (自定義 CSS 注入)
+- **AI 引擎**: Google Gemma 4 / Gemini 1.5 Pro & Flash
+- **資料處理**: 兩階段 Regex 過濾 + 容錯 JSON 解析引擎
+- **狀態管理**: Streamlit Callback 異步狀態同步模式
 
 ---
-**讓每份剩食都有重生的機會！** 🍷🍽️
+**讓每一份剩食，在 AI 大廚的眼中重獲新生！** 🍷🍽️
