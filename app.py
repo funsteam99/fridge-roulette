@@ -112,10 +112,22 @@ def identify_ingredients(api_key, base_url, model_name, image_bytes):
         )
         raw_result = response.choices[0].message.content.strip()
         
-        # 強制過濾常見的 AI 廢話開場 (防護機制)
-        cleaned = re.sub(r'^(我看見了|這張照片中有|食材清單有|食材有|以下是辨識結果|辨識結果|食材)：', '', raw_result)
-        cleaned = cleaned.replace('\n', ', ').strip() # 防止 AI 用換行而不是逗號
-        return cleaned
+        # 1. 強效過濾：移除 <thought>...</thought> 標籤及其內容
+        cleaned = re.sub(r'<thought>.*?</thought>', '', raw_result, flags=re.DOTALL | re.IGNORECASE)
+        
+        # 2. 移除可能存在的 Markdown 程式碼區塊標籤 (如 ``` 或 ```json)
+        cleaned = re.sub(r'```[a-zA-Z]*\n?', '', cleaned)
+        cleaned = cleaned.replace('```', '')
+        
+        # 3. 過濾常見的 AI 廢話前綴
+        cleaned = re.sub(r'^(我看見了|這張照片中有|食材清單有|食材有|以下是辨識結果|辨識結果|食材|食材列表)[：:]\s*', '', cleaned)
+        
+        # 4. 處理換行與多餘空白
+        cleaned = cleaned.replace('\n', ', ').strip()
+        
+        # 5. 清理重複的逗號與前後空白
+        cleaned = re.sub(r',\s*,', ',', cleaned)
+        return cleaned.strip(' ,')
     except Exception as e:
         if "429" in str(e):
             return "⚠️ API 額度已達上限。大廚建議您在側邊欄切換至 'gemini-1.5-flash'，那是目前最穩定的助手。"
