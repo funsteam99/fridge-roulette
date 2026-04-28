@@ -40,9 +40,15 @@ st.set_page_config(
 
 # 初始化 Session State
 if "api_key" not in st.session_state:
-    st.session_state.api_key = saved_config.get("api_key", "")
+    # 優先順序：Streamlit Secrets > 本地 config.json
+    if "api_key" in st.secrets:
+        st.session_state.api_key = st.secrets["api_key"]
+    else:
+        st.session_state.api_key = saved_config.get("api_key", "")
+
 if "available_models" not in st.session_state:
     st.session_state.available_models = saved_config.get("available_models", ["gemini-1.5-flash", "gemini-1.5-pro", "gemma-2-9b-it"])
+
 # 隨機挑選測試食材
 if "random_ingredients" not in st.session_state:
     st.session_state.random_ingredients = random.choice(TEST_SAMPLES)
