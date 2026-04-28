@@ -75,7 +75,15 @@ with st.sidebar:
 
 # --- 核心 AI 邏輯 ---
 def identify_ingredients(api_key, base_url, model_name, image_bytes):
-    """階段 1：辨識照片中的食材"""
+    """階段 1：辨識照片中的食材 (以大廚的人格設定進行辨識)"""
+    CHEF_VISION_SYSTEM_PROMPT = """你是一位擁有 20 年經驗的星級創意大廚，專精於「剩食料理 (Fridge Roulette)」。
+    現在請你運用大廚敏銳的直覺，掃描這張照片中的每一件食材。
+    
+    你的任務：直接列出你看到的所有食材名稱，並以「逗號」分隔。
+    例如：半盒豆腐, 剩一半的炸雞, 三根蔥, 一顆雞蛋
+    
+    注意：僅回傳食材列表，不要有任何多餘的開場白或結語。"""
+    
     try:
         client = OpenAI(api_key=api_key, base_url=base_url)
         encoded_image = base64.b64encode(image_bytes).decode("utf-8")
@@ -83,7 +91,7 @@ def identify_ingredients(api_key, base_url, model_name, image_bytes):
         response = client.chat.completions.create(
             model=model_name,
             messages=[
-                {"role": "system", "content": "你是一位食材辨識專家。請列出照片中看到的所有食材，並以逗號分隔。僅回傳食材清單，不要有其他廢話。"},
+                {"role": "system", "content": CHEF_VISION_SYSTEM_PROMPT},
                 {"role": "user", "content": [
                     {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded_image}"}}
                 ]}
@@ -92,8 +100,8 @@ def identify_ingredients(api_key, base_url, model_name, image_bytes):
         return response.choices[0].message.content.strip()
     except Exception as e:
         if "429" in str(e):
-            return "⚠️ API 額度已達上限或過於頻繁。建議在側邊欄切換至 'gemini-1.5-flash' 模型，或稍候 60 秒再試一次。"
-        return f"辨識失敗: {str(e)}"
+            return "⚠️ API 額度已達上限。大廚建議您在側邊欄切換至 'gemini-1.5-flash'，那是目前最穩定的助手。"
+        return f"大廚辨識失敗: {str(e)}"
 
 def get_recipes(api_key, base_url, model_name, ingredients):
     """階段 2：根據文字產出食譜"""
