@@ -38,7 +38,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 初始化 Session State
+# --- 初始化 Session State ---
 if "api_key" not in st.session_state:
     if "api_key" in st.secrets:
         st.session_state.api_key = st.secrets["api_key"]
@@ -54,9 +54,9 @@ if "default_model" not in st.session_state:
     else:
         st.session_state.default_model = saved_config.get("model", "gemini-1.5-flash")
 
-# 確保 ingredients_input 在 Session State 中
+# 關鍵修正：確保 ingredients_input 的初始化不會與 widget 衝突
 if "ingredients_input" not in st.session_state:
-    st.session_state.ingredients_input = random.choice(TEST_SAMPLES)
+    st.session_state["ingredients_input"] = random.choice(TEST_SAMPLES)
 
 # --- 側邊欄設定 ---
 with st.sidebar:
@@ -99,7 +99,6 @@ with st.sidebar:
         except Exception as e:
             st.sidebar.error(f"掃描失敗: {str(e)}")
 
-    # 決定下拉選單的預設 index
     try:
         current_model = st.session_state.default_model
         default_index = st.session_state.available_models.index(current_model)
@@ -179,6 +178,7 @@ def get_recipes(api_key, base_url, model_name, ingredients):
 # --- 介面操作回呼函數 ---
 def add_tag(tag):
     current = st.session_state.get("ingredients_input", "")
+    # 如果目前的內容是測試樣品之一，則直接替換，否則累加
     if current in TEST_SAMPLES or not current.strip():
         st.session_state["ingredients_input"] = tag
     else:
@@ -194,14 +194,12 @@ def clear_ingredients():
 st.title("🍳 冰箱大轉盤")
 st.caption("AI 驅動的星級剩食料理助手")
 
-# 手機優化：相機功能 (展示潛力)
 with st.expander("📸 拍照辨識食材 (開發中)", expanded=False):
     st.camera_input("拍一張冰箱照片")
     st.info("💡 目前版本請先手動輸入或點選下方食材標籤。")
 
 st.markdown("---")
 
-# 常用食材快速點選
 st.write("**快速加入常用食材：**")
 common_tags = ["雞蛋", "豆腐", "蔥花", "高麗菜", "豬肉片", "泡麵", "洋蔥", "鮪魚罐頭"]
 tag_cols = st.columns(2)
@@ -216,7 +214,7 @@ for i, tag in enumerate(common_tags):
 
 st.markdown(" ")
 
-# 核心輸入框
+# 核心輸入框：確保與 Session State 綁定，但不直接在渲染時修改
 ingredients = st.text_area(
     "👇 您的食材清單：", 
     height=120, 
@@ -242,27 +240,20 @@ if st.button("🔥 開始料理轉盤！", type="primary", use_container_width=T
                 cols = st.columns(3)
                 for i, recipe in enumerate(result["recipes"][:3]):
                     with cols[i]:
-                        # 加入容錯讀取機制 (Fallback)，防範模型不聽話
                         dish_name = recipe.get('dish_name', recipe.get('菜名', '驚喜料理'))
                         style = recipe.get('style', recipe.get('風格', recipe.get('料理風格', '創意')))
-                        
                         ing_list = recipe.get('ingredients_needed', recipe.get('食材', recipe.get('所需食材', [])))
-                        if isinstance(ing_list, str): ing_list = [ing_list] # 防呆
-                        
+                        if isinstance(ing_list, str): ing_list = [ing_list]
                         steps_list = recipe.get('steps', recipe.get('步驟', recipe.get('烹飪步驟', [])))
-                        if isinstance(steps_list, str): steps_list = [steps_list] # 防呆
-                        
+                        if isinstance(steps_list, str): steps_list = [steps_list]
                         secret = recipe.get('chef_secret', recipe.get('大廚秘訣', recipe.get('秘訣', '用心就是美味！')))
 
                         st.markdown(f"### 🍽️ {dish_name}")
                         st.caption(f"風格：{style}")
-                        
                         st.write("**🛒 食材**")
-                        st.write(", ".join(ing_list) if ing_list else "食材解析遺失，請查看獨白或直接發揮創意。")
-                        
+                        st.write(", ".join(ing_list) if ing_list else "食材解析遺失。")
                         st.write("**📝 步驟**")
                         for idx, s in enumerate(steps_list): st.write(f"{idx+1}. {s}")
-                        
                         st.warning(f"💡 **大廚秘訣**\n\n{secret}")
     else: st.warning("☝️ 請輸入食材！")
 
