@@ -176,6 +176,20 @@ def get_recipes(api_key, base_url, model_name, ingredients):
         st.error(f"❌ 連線失敗：{str(e)}")
         return None
 
+# --- 介面操作回呼函數 ---
+def add_tag(tag):
+    current = st.session_state.get("ingredients_input", "")
+    if current in TEST_SAMPLES or not current.strip():
+        st.session_state["ingredients_input"] = tag
+    else:
+        st.session_state["ingredients_input"] = f"{current}, {tag}"
+
+def set_random_ingredients():
+    st.session_state["ingredients_input"] = random.choice(TEST_SAMPLES)
+
+def clear_ingredients():
+    st.session_state["ingredients_input"] = ""
+
 # --- UI 介面 ---
 st.title("🍳 冰箱大轉盤")
 st.caption("AI 驅動的星級剩食料理助手")
@@ -192,17 +206,17 @@ st.write("**快速加入常用食材：**")
 common_tags = ["雞蛋", "豆腐", "蔥花", "高麗菜", "豬肉片", "泡麵", "洋蔥", "鮪魚罐頭"]
 tag_cols = st.columns(2)
 for i, tag in enumerate(common_tags):
-    if tag_cols[i % 2].button(f"+ {tag}", key=f"tag_{tag}", use_container_width=True):
-        current = st.session_state.get("ingredients_input", "")
-        if current in TEST_SAMPLES or not current.strip():
-            st.session_state["ingredients_input"] = tag
-        else:
-            st.session_state["ingredients_input"] = f"{current}, {tag}"
-        st.rerun()
+    tag_cols[i % 2].button(
+        f"+ {tag}", 
+        key=f"tag_{tag}", 
+        on_click=add_tag, 
+        args=(tag,), 
+        use_container_width=True
+    )
 
 st.markdown(" ")
 
-# 移除 value 參數，完全交由 key="ingredients_input" 控制
+# 核心輸入框
 ingredients = st.text_area(
     "👇 您的食材清單：", 
     height=120, 
@@ -211,13 +225,9 @@ ingredients = st.text_area(
 
 col_actions1, col_actions2 = st.columns(2)
 with col_actions1:
-    if st.button("🎲 隨機清單", use_container_width=True):
-        st.session_state["ingredients_input"] = random.choice(TEST_SAMPLES)
-        st.rerun()
+    st.button("🎲 隨機清單", on_click=set_random_ingredients, use_container_width=True)
 with col_actions2:
-    if st.button("🧹 清空", use_container_width=True):
-        st.session_state["ingredients_input"] = ""
-        st.rerun()
+    st.button("🧹 清空", on_click=clear_ingredients, use_container_width=True)
 
 if st.button("🔥 開始料理轉盤！", type="primary", use_container_width=True):
     if ingredients.strip():
