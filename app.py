@@ -88,13 +88,14 @@ with st.sidebar:
 # --- 核心 AI 邏輯 ---
 def identify_ingredients(api_key, base_url, model_name, image_bytes):
     """階段 1：辨識照片中的食材 (以大廚的人格設定進行辨識)"""
-    CHEF_VISION_SYSTEM_PROMPT = """你是一位擁有 20 年經驗的星級創意大廚，專精於「剩食料理 (Fridge Roulette)」。
-    現在請你運用大廚敏銳的直覺，掃描這張照片中的每一件食材。
+    CHEF_VISION_SYSTEM_PROMPT = """你是一位星級創意大廚。請運用專業直覺掃描照片，僅列出看到的食材名稱。
     
-    你的任務：直接列出你看到的所有食材名稱，並以「逗號」分隔。
-    例如：半盒豆腐, 剩一半的炸雞, 三根蔥, 一顆雞蛋
+    【規則】
+    1. 僅回傳食材名稱，並以逗號分隔。
+    2. 嚴禁包含任何思考過程、描述、形容詞或結論（例如不要寫「我看見了...」、「這看起來...」）。
+    3. 如果沒看到食材，請回傳「未偵測到食材」。
     
-    注意：僅回傳食材列表，不要有任何多餘的開場白或結語。"""
+    範例輸出：雞蛋, 豆腐, 蔥, 牛奶"""
     
     try:
         client = OpenAI(api_key=api_key, base_url=base_url)
@@ -109,7 +110,12 @@ def identify_ingredients(api_key, base_url, model_name, image_bytes):
                 ]}
             ]
         )
-        return response.choices[0].message.content.strip()
+        raw_result = response.choices[0].message.content.strip()
+        
+        # 強制過濾常見的 AI 廢話開場 (防護機制)
+        cleaned = re.sub(r'^(我看見了|這張照片中有|食材清單有|食材有|以下是辨識結果|辨識結果|食材)：', '', raw_result)
+        cleaned = cleaned.replace('\n', ', ').strip() # 防止 AI 用換行而不是逗號
+        return cleaned
     except Exception as e:
         if "429" in str(e):
             return "⚠️ API 額度已達上限。大廚建議您在側邊欄切換至 'gemini-1.5-flash'，那是目前最穩定的助手。"
