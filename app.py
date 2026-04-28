@@ -91,6 +91,8 @@ def identify_ingredients(api_key, base_url, model_name, image_bytes):
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
+        if "429" in str(e):
+            return "⚠️ API 額度已達上限或過於頻繁。建議在側邊欄切換至 'gemini-1.5-flash' 模型，或稍候 60 秒再試一次。"
         return f"辨識失敗: {str(e)}"
 
 def get_recipes(api_key, base_url, model_name, ingredients):
