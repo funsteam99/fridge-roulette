@@ -4,6 +4,7 @@ import json
 import os
 import re
 import random
+import base64
 
 # 設定檔案路徑
 CONFIG_FILE = "config.json"
@@ -47,7 +48,6 @@ st.markdown("""
     .stApp {
         bottom: 50px;
     }
-    /* 加大按鈕文字並讓邊角更圓滑 */
     .stButton>button {
         border-radius: 12px;
         height: 3em;
@@ -64,15 +64,14 @@ if "api_key" not in st.session_state:
         st.session_state.api_key = saved_config.get("api_key", "")
 
 if "available_models" not in st.session_state:
-    st.session_state.available_models = saved_config.get("available_models", ["gemini-1.5-flash", "gemini-1.5-pro", "gemma-2-9b-it"])
+    st.session_state.available_models = saved_config.get("available_models", ["gemma-4-31b-it", "gemini-1.5-flash", "gemini-1.5-pro"])
 
 if "default_model" not in st.session_state:
     if "default_model" in st.secrets:
         st.session_state.default_model = st.secrets["default_model"]
     else:
-        st.session_state.default_model = saved_config.get("model", "gemini-1.5-flash")
+        st.session_state.default_model = saved_config.get("model", "gemma-4-31b-it")
 
-# 關鍵修正：確保 ingredients_input 的初始化不會與 widget 衝突
 if "ingredients_input" not in st.session_state:
     st.session_state["ingredients_input"] = random.choice(TEST_SAMPLES)
 
@@ -177,15 +176,25 @@ def parse_chef_response(raw_content):
         st.code(raw_content)
         return None
 
-def get_recipes(api_key, base_url, model_name, ingredients):
+def get_recipes(api_key, base_url, model_name, ingredients, image_bytes=None):
     if not api_key:
         st.error("🔑 請先輸入 API Key！")
         return None
     try:
         client = OpenAI(api_key=api_key, base_url=base_url)
+        user_content = [{"type": "text", "text": f"食材文字描述：{ingredients}"}]
+        
+        if image_bytes:
+            encoded_image = base64.b64encode(image_bytes).decode("utf-8")
+            user_content.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:image/jpeg;base64,{encoded_image}"}
+            })
+            user_content[0]["text"] += "\n請同時辨識這張圖片中的食材，並結合文字描述進行設計。"
+
         response = client.chat.completions.create(
             model=model_name,
-            messages=[{"role": "system", "content": SYSTEM_INSTRUCTION}, {"role": "user", "content": f"食材：{ingredients}"}],
+            messages=[{"role": "system", "content": SYSTEM_INSTRUCTION}, {"role": "user", "content": user_content}],
             response_format={"type": "json_object"}
         )
         return parse_chef_response(response.choices[0].message.content)
@@ -196,7 +205,6 @@ def get_recipes(api_key, base_url, model_name, ingredients):
 # --- 介面操作回呼函數 ---
 def add_tag(tag):
     current = st.session_state.get("ingredients_input", "")
-    # 如果目前的內容是測試樣品之一，則直接替換，否則累加
     if current in TEST_SAMPLES or not current.strip():
         st.session_state["ingredients_input"] = tag
     else:
@@ -212,9 +220,11 @@ def clear_ingredients():
 st.title("🍳 冰箱大轉盤")
 st.caption("AI 驅動的星級剩食料理助手")
 
-with st.expander("📸 拍照辨識食材 (開發中)", expanded=False):
-    st.camera_input("拍一張冰箱照片")
-    st.info("💡 目前版本請先手動輸入或點選下方食材標籤。")
+camera_photo = None
+with st.expander("📸 拍照辨識食材", expanded=False):
+    camera_photo = st.camera_input("拍一張冰箱照片")
+    if camera_photo:
+        st.success("✅ 照片已備好，點擊下方「開始料理」進行辨識。")
 
 st.markdown("---")
 
@@ -222,22 +232,11 @@ st.write("**快速加入常用食材：**")
 common_tags = ["雞蛋", "豆腐", "蔥花", "高麗菜", "豬肉片", "泡麵", "洋蔥", "鮪魚罐頭"]
 tag_cols = st.columns(2)
 for i, tag in enumerate(common_tags):
-    tag_cols[i % 2].button(
-        f"+ {tag}", 
-        key=f"tag_{tag}", 
-        on_click=add_tag, 
-        args=(tag,), 
-        use_container_width=True
-    )
+    tag_cols[i % 2].button(f"+ {tag}", key=f"tag_{tag}", on_click=add_tag, args=(tag,), use_container_width=True)
 
 st.markdown(" ")
 
-# 核心輸入框：確保與 Session State 綁定，但不直接在渲染時修改
-ingredients = st.text_area(
-    "👇 您的食材清單：", 
-    height=120, 
-    key="ingredients_input"
-)
+ingredients = st.text_area("👇 您的食材清單：", height=120, key="ingredients_input")
 
 col_actions1, col_actions2 = st.columns(2)
 with col_actions1:
@@ -246,25 +245,26 @@ with col_actions2:
     st.button("🧹 清空", on_click=clear_ingredients, use_container_width=True)
 
 if st.button("🔥 開始料理轉盤！", type="primary", use_container_width=True):
-    if ingredients.strip():
-        with st.spinner(f"👨‍🍳 大廚正在廚房忙碌中..."):
-            result = get_recipes(st.session_state.api_key, base_url, model_name, ingredients)
+    if ingredients.strip() or camera_photo:
+        with st.spinner(f"👨‍🍳 大廚正在看照片發想靈感..."):
+            photo_bytes = camera_photo.getvalue() if camera_photo else None
+            result = get_recipes(st.session_state.api_key, base_url, model_name, ingredients, photo_bytes)
             if result:
                 st.balloons()
-                with st.expander("🧠 大廚的內心獨白 (思考過程)", expanded=False):
+                with st.expander("🧠 大廚的內心獨白", expanded=False):
                     st.markdown(result["chef_thinking"])
                 
                 st.markdown("---")
                 cols = st.columns(3)
                 for i, recipe in enumerate(result["recipes"][:3]):
                     with cols[i]:
-                        dish_name = recipe.get('dish_name', recipe.get('菜名', '驚喜料理'))
-                        style = recipe.get('style', recipe.get('風格', recipe.get('料理風格', '創意')))
-                        ing_list = recipe.get('ingredients_needed', recipe.get('食材', recipe.get('所需食材', [])))
+                        dish_name = recipe.get('dish_name', '驚喜料理')
+                        style = recipe.get('style', '創意')
+                        ing_list = recipe.get('ingredients_needed', [])
                         if isinstance(ing_list, str): ing_list = [ing_list]
-                        steps_list = recipe.get('steps', recipe.get('步驟', recipe.get('烹飪步驟', [])))
+                        steps_list = recipe.get('steps', [])
                         if isinstance(steps_list, str): steps_list = [steps_list]
-                        secret = recipe.get('chef_secret', recipe.get('大廚秘訣', recipe.get('秘訣', '用心就是美味！')))
+                        secret = recipe.get('chef_secret', '用心就是美味！')
 
                         st.markdown(f"### 🍽️ {dish_name}")
                         st.caption(f"風格：{style}")
@@ -272,8 +272,8 @@ if st.button("🔥 開始料理轉盤！", type="primary", use_container_width=T
                         st.write(", ".join(ing_list) if ing_list else "食材解析遺失。")
                         st.write("**📝 步驟**")
                         for idx, s in enumerate(steps_list): st.write(f"{idx+1}. {s}")
-                        st.warning(f"💡 **大廚秘訣**\n\n{secret}")
-    else: st.warning("☝️ 請輸入食材！")
+                        st.warning(f"💡 **秘訣**\n\n{secret}")
+    else: st.warning("☝️ 請輸入食材或拍張照！")
 
 st.markdown("---")
-st.caption("2026 Fridge Roulette Engine v6.3 - Strict Keys & Fallback parser")
+st.caption("2026 Fridge Roulette Engine v7.0 - Gemma 4 Multimodal Ready")
