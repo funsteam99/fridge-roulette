@@ -32,11 +32,29 @@ def save_config(config):
 saved_config = load_config()
 
 st.set_page_config(
-    page_title="冰箱大轉盤 - 星級大廚剩食料理", 
+    page_title="冰箱大轉盤", 
     page_icon="🍳", 
     layout="centered",
     initial_sidebar_state="collapsed"
 )
+
+# --- APP 視覺美化 (隱藏 Streamlit 選單) ---
+st.markdown("""
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .stApp {
+        bottom: 50px;
+    }
+    /* 加大按鈕文字並讓邊角更圓滑 */
+    .stButton>button {
+        border-radius: 12px;
+        height: 3em;
+        font-weight: 600;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 # --- 初始化 Session State ---
 if "api_key" not in st.session_state:
