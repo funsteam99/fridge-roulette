@@ -40,7 +40,6 @@ st.set_page_config(
 
 # 初始化 Session State
 if "api_key" not in st.session_state:
-    # 優先順序：Streamlit Secrets > 本地 config.json
     if "api_key" in st.secrets:
         st.session_state.api_key = st.secrets["api_key"]
     else:
@@ -49,16 +48,15 @@ if "api_key" not in st.session_state:
 if "available_models" not in st.session_state:
     st.session_state.available_models = saved_config.get("available_models", ["gemini-1.5-flash", "gemini-1.5-pro", "gemma-2-9b-it"])
 
-# 預設模型邏輯
 if "default_model" not in st.session_state:
     if "default_model" in st.secrets:
         st.session_state.default_model = st.secrets["default_model"]
     else:
         st.session_state.default_model = saved_config.get("model", "gemini-1.5-flash")
 
-# 隨機挑選測試食材
-if "random_ingredients" not in st.session_state:
-    st.session_state.random_ingredients = random.choice(TEST_SAMPLES)
+# 確保 ingredients_input 在 Session State 中
+if "ingredients_input" not in st.session_state:
+    st.session_state.ingredients_input = random.choice(TEST_SAMPLES)
 
 # --- 側邊欄設定 ---
 with st.sidebar:
@@ -192,22 +190,21 @@ st.markdown("---")
 # 常用食材快速點選
 st.write("**快速加入常用食材：**")
 common_tags = ["雞蛋", "豆腐", "蔥花", "高麗菜", "豬肉片", "泡麵", "洋蔥", "鮪魚罐頭"]
-# 在手機上顯示為 2x4 的網格
 tag_cols = st.columns(2)
 for i, tag in enumerate(common_tags):
     if tag_cols[i % 2].button(f"+ {tag}", key=f"tag_{tag}", use_container_width=True):
-        current = st.session_state.random_ingredients
+        current = st.session_state.get("ingredients_input", "")
         if current in TEST_SAMPLES or not current.strip():
-            st.session_state.random_ingredients = tag
+            st.session_state["ingredients_input"] = tag
         else:
-            st.session_state.random_ingredients += f", {tag}"
+            st.session_state["ingredients_input"] = f"{current}, {tag}"
         st.rerun()
 
-st.markdown(" ") # 留點間距
+st.markdown(" ")
 
+# 移除 value 參數，完全交由 key="ingredients_input" 控制
 ingredients = st.text_area(
     "👇 您的食材清單：", 
-    value=st.session_state.random_ingredients,
     height=120, 
     key="ingredients_input"
 )
@@ -215,11 +212,11 @@ ingredients = st.text_area(
 col_actions1, col_actions2 = st.columns(2)
 with col_actions1:
     if st.button("🎲 隨機清單", use_container_width=True):
-        st.session_state.random_ingredients = random.choice(TEST_SAMPLES)
+        st.session_state["ingredients_input"] = random.choice(TEST_SAMPLES)
         st.rerun()
 with col_actions2:
     if st.button("🧹 清空", use_container_width=True):
-        st.session_state.random_ingredients = ""
+        st.session_state["ingredients_input"] = ""
         st.rerun()
 
 if st.button("🔥 開始料理轉盤！", type="primary", use_container_width=True):
