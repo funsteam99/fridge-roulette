@@ -64,13 +64,18 @@ if "api_key" not in st.session_state:
         st.session_state.api_key = saved_config.get("api_key", "")
 
 if "available_models" not in st.session_state:
-    st.session_state.available_models = saved_config.get("available_models", ["gemma-4-31b-it", "gemini-1.5-flash", "gemini-1.5-pro"])
+    # 基礎清單
+    base_models = ["gemini-1.5-flash", "gemini-1.5-pro"]
+    # 如果 Secrets 有設定且不在清單中，則動態加入
+    if "default_model" in st.secrets:
+        s_model = st.secrets["default_model"]
+        if s_model not in base_models:
+            base_models.insert(0, s_model)
+    st.session_state.available_models = saved_config.get("available_models", base_models)
 
 if "default_model" not in st.session_state:
-    if "default_model" in st.secrets:
-        st.session_state.default_model = st.secrets["default_model"]
-    else:
-        st.session_state.default_model = saved_config.get("model", "gemma-4-31b-it")
+    # 優先從 Secrets 讀取，無需硬編碼特定型號
+    st.session_state.default_model = st.secrets.get("default_model") or saved_config.get("model", "gemini-1.5-flash")
 
 if "ingredients_input" not in st.session_state:
     st.session_state["ingredients_input"] = random.choice(TEST_SAMPLES)
