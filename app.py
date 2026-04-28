@@ -136,7 +136,22 @@ def identify_ingredients(api_key, base_url, model_name, image_bytes):
 def get_recipes(api_key, base_url, model_name, ingredients):
     """階段 2：根據文字產出食譜"""
     SYSTEM_INSTRUCTION = """你是一位星級創意大廚。請根據食材設計三道料理。
-    必須回傳 JSON：{"chef_thinking": "...", "recipes": [{"dish_name": "...", "style": "...", "ingredients_needed": [], "steps": [], "chef_secret": "..."}]}"""
+    你必須回傳一個嚴格的 JSON 格式物件。
+    嚴禁翻譯或更改 JSON 的「鍵值 (Key)」，必須完全使用以下定義的英文 Key。
+
+    JSON 結構必須精準長這樣：
+    {
+      "chef_thinking": "描述你如何思考搭配與靈感來源。",
+      "recipes": [
+        {
+          "dish_name": "菜名",
+          "style": "料理風格",
+          "ingredients_needed": ["食材1", "食材2"],
+          "steps": ["步驟1", "步驟2"],
+          "chef_secret": "大廚秘訣"
+        }
+      ]
+    }"""
     try:
         client = OpenAI(api_key=api_key, base_url=base_url)
         response = client.chat.completions.create(
@@ -147,11 +162,25 @@ def get_recipes(api_key, base_url, model_name, ingredients):
             ],
             response_format={"type": "json_object"}
         )
-        # 簡單解析邏輯 (沿用之前的 parse_chef_response 精髓)
-        data = json.loads(response.choices[0].message.content)
-        return data
+        raw_content = response.choices[0].message.content.strip()
+        
+        # 使用強效解析邏輯 (Fallback)
+        # 先移除 <thought>
+        json_str = re.sub(r'<thought>.*?</thought>', '', raw_content, flags=re.DOTALL | re.IGNORECASE).strip()
+        # 移除 Markdown
+        json_str = re.sub(r'```[a-zA-Z]*\n?', '', json_str)
+        json_str = json_str.replace('```', '').strip()
+        
+        # 嘗試抓取第一個 { 到最後一個 } 之間的內容
+        json_find = re.search(r'(\{.*\})', json_str, re.DOTALL)
+        if json_find:
+            json_str = json_find.group(1)
+            
+        return json.loads(json_str)
     except Exception as e:
-        st.error(f"❌ 料理失敗：{str(e)}")
+        st.error(f"❌ 料理失敗：解析回傳資料時出錯。")
+        with st.expander("查看 AI 回傳原始資料"):
+            st.code(raw_content if 'raw_content' in locals() else str(e))
         return None
 
 # --- 介面操作回呼 ---
