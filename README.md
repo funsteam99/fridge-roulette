@@ -7,6 +7,8 @@
 > **「冰箱裡沒有垃圾，只有還沒被發現的奇蹟。」** —— 20 年資歷創意大廚
 
 這是一個由 AI 驅動的創意料理助手，專門解決「冰箱剩一堆食材卻不知道煮什麼」的世紀難題。透過 Google Gemini 或 Gemma 模型的強大運算力，我們為每一份剩食注入靈魂。
+<img width="670" height="391" alt="image" src="https://github.com/user-attachments/assets/a7097e31-e9ce-4da7-a3fc-5493a6cc901a" />
+
 
 ## ✨ 特色功能
 
