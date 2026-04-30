@@ -1,3 +1,4 @@
 google-generativeai
 streamlit
 openai
+streamlit-google-auth
