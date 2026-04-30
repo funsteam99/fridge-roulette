@@ -113,21 +113,21 @@ def identify_ingredients(api_key, base_url, model_name, image_bytes):
         return f"大廚看不清照片：{str(e)}"
 
 def get_recipes(api_key, base_url, model_name, ingredients, is_premium=False):
-    """階段 2：大廚發揮創意料理"""
-    extra = "身為您的專屬大廚，請為身為會員的使用者額外提供「營養價值分析」與「養生建議」。" if is_premium else ""
+    """階段 2：大廚發揮創意料理 (完整版)"""
+    extra = "身為您的專屬大廚，請為身為會員的使用者額外提供「詳細的營養價值分析」與「養生建議」。" if is_premium else ""
     SYSTEM_INSTRUCTION = f"""你是一位擁有 20 年經驗、幽默且專業的星級創意大廚，專精於「剩食料理 (Fridge Roulette)」。
-    請根據食材設計三道創意料理。{extra}
+    請根據食材設計三道創意料理。回應必須詳細、有層次且富有熱情。{extra}
     
-    必須回傳嚴格的 JSON 格式：
+    你必須回傳嚴格的 JSON 格式：
     {{
-      "chef_thinking": "描述你看到這些食材時的靈感來源。",
+      "chef_thinking": "描述你看到這些食材時的靈感來源，字數約 100 字。",
       "recipes": [
         {{
-          "dish_name": "菜名",
-          "style": "料理風格",
-          "ingredients_needed": ["食材1", "食材2"],
-          "steps": ["步驟1", "步驟2"],
-          "chef_secret": "大廚秘訣",
+          "dish_name": "菜名 (響亮且吸引人)",
+          "style": "料理風格 (如：法式家常、創意台式)",
+          "ingredients_needed": ["食材 1", "食材 2 (包含需要的調味料)"],
+          "steps": ["詳細步驟 1", "詳細步驟 2", "詳細步驟 3 (至少包含 3-5 個步驟)"],
+          "chef_secret": "大廚不外傳的美味秘訣",
           "nutrition": "營養分析 (若非會員則留空)"
         }}
       ]
@@ -195,6 +195,16 @@ if st.button("🔥 第三步：開始料理轉盤！", type="primary", use_conta
                         st.markdown(f"### 🍽️ {r.get('dish_name')}")
                         st.caption(f"風格：{r.get('style')}")
                         st.write("**🛒 食材**\n" + ", ".join(r.get('ingredients_needed', [])))
+                        
+                        # 恢復步驟顯示
+                        st.write("**📝 步驟**")
+                        steps = r.get('steps', [])
+                        if isinstance(steps, list):
+                            for idx, s in enumerate(steps):
+                                st.write(f"{idx+1}. {s}")
+                        else:
+                            st.write(steps)
+
                         if is_mem and r.get('nutrition'):
                             st.info(f"🥗 **營養分析**\n\n{r['nutrition']}")
                         st.warning(f"💡 **秘訣**\n\n{r.get('chef_secret')}")
