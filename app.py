@@ -49,16 +49,81 @@ st.set_page_config(
 # --- CSS 美化 ---
 st.markdown("""
     <style>
+    :root {
+        --paper: #fbf7ef;
+        --ink: #2d2620;
+        --muted: #766a5f;
+        --line: #e5d9c9;
+        --tomato: #b43d2f;
+        --tomato-dark: #84291f;
+        --olive: #5b6f45;
+        --cream: #fffaf1;
+        --gold: #c8913d;
+    }
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
+    .stApp {
+        background:
+            linear-gradient(180deg, rgba(251, 247, 239, 0.97), rgba(246, 239, 228, 0.98)),
+            repeating-linear-gradient(90deg, rgba(180, 61, 47, 0.035) 0 1px, transparent 1px 42px);
+        color: var(--ink);
+    }
     .block-container {
-        max-width: 760px;
-        padding-top: 1.25rem;
+        max-width: 800px;
+        padding-top: 1rem;
         padding-bottom: 3rem;
     }
+    .magazine-hero {
+        border-bottom: 2px solid var(--ink);
+        padding: 0.75rem 0 1.1rem;
+        margin-bottom: 1.15rem;
+    }
+    .magazine-kicker {
+        color: var(--tomato);
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 0.35rem;
+    }
+    .magazine-title {
+        color: var(--ink);
+        font-family: Georgia, "Times New Roman", "Noto Serif TC", serif;
+        font-size: clamp(2.35rem, 8vw, 4.35rem);
+        font-weight: 800;
+        line-height: 0.95;
+        margin: 0;
+    }
+    .magazine-deck {
+        color: var(--muted);
+        font-size: 1.02rem;
+        line-height: 1.55;
+        max-width: 36rem;
+        margin-top: 0.75rem;
+    }
+    .section-label {
+        align-items: center;
+        color: var(--ink);
+        display: flex;
+        font-size: 0.85rem;
+        font-weight: 800;
+        gap: 0.65rem;
+        letter-spacing: 0.06em;
+        margin: 1.35rem 0 0.65rem;
+        text-transform: uppercase;
+    }
+    .section-label:after {
+        background: var(--line);
+        content: "";
+        flex: 1;
+        height: 1px;
+    }
     .stButton>button {
-        border-radius: 12px;
+        background: var(--cream);
+        border: 1px solid var(--line);
+        border-radius: 3px;
+        color: var(--ink);
         min-height: 3.25rem;
         height: auto;
         font-weight: 600;
@@ -66,29 +131,67 @@ st.markdown("""
         white-space: normal;
         transition: 0.2s;
     }
-    .stButton>button:hover { border-color: #ff4b4b; color: #ff4b4b; }
+    .stButton>button:hover {
+        border-color: var(--tomato);
+        color: var(--tomato);
+        transform: translateY(-1px);
+    }
+    .stButton>button[kind="primary"] {
+        background: var(--tomato);
+        border-color: var(--tomato);
+        color: #fffaf1;
+        font-size: 1.02rem;
+        letter-spacing: 0.02em;
+    }
+    .stButton>button[kind="primary"]:hover {
+        background: var(--tomato-dark);
+        border-color: var(--tomato-dark);
+        color: #fffaf1;
+    }
     .stTextArea textarea {
-        border-radius: 10px;
+        background: var(--cream);
+        border: 1px solid var(--line);
+        border-radius: 3px;
+        color: var(--ink);
         font-size: 1rem;
         line-height: 1.45;
     }
     [data-testid="stExpander"] details {
-        border-radius: 12px;
+        background: rgba(255, 250, 241, 0.7);
+        border-color: var(--line);
+        border-radius: 3px;
     }
     [data-testid="stVerticalBlockBorderWrapper"] {
-        border-radius: 14px;
+        background: var(--cream);
+        border: 1px solid var(--line);
+        border-radius: 3px;
+        box-shadow: none;
     }
     h1, h2, h3 {
         line-height: 1.2;
+    }
+    h2, h3 {
+        color: var(--ink);
+        font-family: Georgia, "Times New Roman", "Noto Serif TC", serif;
+    }
+    p, li, .stMarkdown {
+        color: var(--ink);
+    }
+    hr {
+        border-color: var(--line);
+        margin: 1.25rem 0;
+    }
+    div[data-testid="stAlert"] {
+        border-radius: 3px;
     }
     @media (max-width: 640px) {
         .block-container {
             padding-left: 1rem;
             padding-right: 1rem;
-            padding-top: 0.75rem;
+            padding-top: 0.5rem;
         }
-        h1 {
-            font-size: 1.8rem;
+        .magazine-title {
+            font-size: 2.45rem;
         }
         h3 {
             font-size: 1.15rem;
@@ -282,7 +385,7 @@ def get_recipes(ingredients, is_premium):
 
 def render_recipe_card(recipe, index, is_premium):
     with st.container(border=True):
-        st.caption(f"料理 {index + 1}")
+        st.caption(f"RECIPE {index + 1}")
         st.subheader(recipe.get("dish_name") or "未命名料理")
 
         style = recipe.get("style")
@@ -307,13 +410,19 @@ def render_recipe_card(recipe, index, is_premium):
             st.warning(f"💡 **秘訣**\n\n{recipe['chef_secret']}")
 
 # --- UI 介面 ---
-st.title("🍳 冰箱大轉盤")
-st.caption("AI 驅動的星級剩食料理助手")
+st.markdown("""
+<section class="magazine-hero">
+    <div class="magazine-kicker">FRIDGE ROULETTE / LEFTOVER KITCHEN</div>
+    <div class="magazine-title">冰箱大轉盤</div>
+    <div class="magazine-deck">把冰箱裡零散的食材，整理成今晚可以端上桌的三道料理。</div>
+</section>
+""", unsafe_allow_html=True)
 
 if not runtime_config["ready"]:
     st.error(runtime_config["error"])
     st.info("本專案現在以 secrets 檔案作為主要設定來源，必要欄位為 api_key 與 default_model。")
 
+st.markdown('<div class="section-label">Photo Scan</div>', unsafe_allow_html=True)
 with st.expander("📸 第一步：拍照辨識食材", expanded=False):
     photo = st.camera_input("拍照")
     if photo:
@@ -325,10 +434,9 @@ with st.expander("📸 第一步：拍照辨識食材", expanded=False):
                     st.session_state["ingredients_input"] = identify_ingredients(photo.getvalue())
                     st.rerun()
 
-st.markdown("---")
-
 # 常用食材快速標籤 (2x4 佈局)
-st.write("**快速加入常用食材：**")
+st.markdown('<div class="section-label">Pantry Shortcuts</div>', unsafe_allow_html=True)
+st.write("**快速加入常用食材**")
 tags = ["雞蛋", "豆腐", "蔥花", "高麗菜", "豬肉片", "泡麵", "洋蔥", "鮪魚罐頭"]
 t_cols = st.columns(2)
 def add_tag(t): 
@@ -339,9 +447,8 @@ def add_tag(t):
 for i, t in enumerate(tags):
     t_cols[i % 2].button(f"+ {t}", key=f"t_{t}", on_click=add_tag, args=(t,), use_container_width=True)
 
-st.markdown(" ")
-
 # 文字確認區
+st.markdown('<div class="section-label">Ingredient Edit</div>', unsafe_allow_html=True)
 ingredients = st.text_area("👇 第二步：確認食材清單 (可微調)：", height=120, key="ingredients_input")
 c1, c2 = st.columns(2)
 def set_rnd(): st.session_state["ingredients_input"] = random.choice(TEST_SAMPLES)
@@ -350,6 +457,7 @@ c1.button("🎲 隨機食材", on_click=set_rnd, use_container_width=True)
 c2.button("🧹 清空清單", on_click=clr, use_container_width=True)
 
 # 料理生成區
+st.markdown('<div class="section-label">Chef Draft</div>', unsafe_allow_html=True)
 if st.button("🔥 第三步：開始料理轉盤！", type="primary", use_container_width=True):
     if not runtime_config["ready"]:
         st.error(runtime_config["error"])
