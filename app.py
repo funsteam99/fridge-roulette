@@ -1,7 +1,6 @@
 import streamlit as st
 from openai import OpenAI
 import json
-import os
 import re
 import random
 import base64
@@ -11,8 +10,25 @@ except ImportError:
     Authenticate = None
 
 # --- 常數設定 ---
-CONFIG_FILE = "config.json"
 DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
+REQUIRED_SECRET_KEYS = ("api_key", "model")
+CULINARY_KEYWORDS = {
+    "食材", "料理", "烹飪", "煮", "炒", "煎", "烤", "蒸", "燉", "炸", "拌", "湯", "飯", "麵",
+    "菜", "肉", "魚", "蛋", "豆腐", "蔥", "洋蔥", "高麗菜", "馬鈴薯", "吐司", "牛奶", "起司",
+    "雞", "豬", "牛", "海鮮", "鮪魚", "剩菜", "冰箱", "調味", "醬", "鹽", "糖", "油"
+}
+BLOCKED_KEYWORDS = {
+    "政治", "選舉", "政黨", "暴力", "仇恨", "色情", "毒品", "炸彈", "武器", "駭客",
+    "惡意程式", "木馬", "勒索", "釣魚", "sql injection", "xss"
+}
+JAILBREAK_PATTERNS = (
+    r"忽略.*(規則|指令|系統)",
+    r"ignore.*(previous|system|instruction)",
+    r"jailbreak",
+    r"developer mode",
+    r"系統提示",
+    r"prompt",
+)
 
 # --- 測試食材樣品 ---
 TEST_SAMPLES = [
@@ -43,34 +59,66 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+def read_secret(key, default=None):
+    """Read Streamlit secrets without crashing when no secrets file exists."""
+    try:
+        return st.secrets.get(key, default)
+    except Exception:
+        return default
+
+
+def validate_runtime_config():
+    try:
+        missing = [key for key in REQUIRED_SECRET_KEYS if not st.secrets.get(key)]
+    except Exception:
+        return {
+            "ready": False,
+            "api_key": "",
+            "model": "",
+            "error": "找不到 Streamlit secrets 設定。請建立 .streamlit/secrets.toml，或在 Streamlit Cloud Secrets 加入 api_key 與 model。",
+        }
+
+    if missing:
+        return {
+            "ready": False,
+            "api_key": "",
+            "model": "",
+            "error": f"Streamlit secrets 缺少必要欄位：{', '.join(missing)}。",
+        }
+
+    return {
+        "ready": True,
+        "api_key": st.secrets["api_key"],
+        "model": st.secrets["model"],
+        "error": "",
+    }
+
+
+runtime_config = validate_runtime_config()
+
 # --- 初始化 Session State ---
 if "api_key" not in st.session_state:
-    st.session_state.api_key = st.secrets.get("api_key") or ""
-
-if "available_models" not in st.session_state:
-    base_models = ["gemini-1.5-flash", "gemini-1.5-pro"]
-    if "default_model" in st.secrets:
-        if st.secrets["default_model"] not in base_models:
-            base_models.insert(0, st.secrets["default_model"])
-    st.session_state.available_models = base_models
+    st.session_state.api_key = runtime_config["api_key"]
 
 if "ingredients_input" not in st.session_state:
     st.session_state["ingredients_input"] = random.choice(TEST_SAMPLES)
 
 # --- Google Auth 初始化 ---
 authenticator = None
-if "google_auth" in st.secrets and Authenticate:
+google_auth_config = read_secret("google_auth")
+if google_auth_config and Authenticate:
     try:
         authenticator = Authenticate(
             secret_credentials_path='google_credentials.json',
             cookie_name='fridge_roulette_cookie',
-            cookie_key=st.secrets["google_auth"]["cookie_key"],
-            client_id=st.secrets["google_auth"]["client_id"],
-            client_secret=st.secrets["google_auth"]["client_secret"],
-            redirect_uri=st.secrets["google_auth"]["redirect_uri"],
+            cookie_key=google_auth_config["cookie_key"],
+            client_id=google_auth_config["client_id"],
+            client_secret=google_auth_config["client_secret"],
+            redirect_uri=google_auth_config["redirect_uri"],
         )
         authenticator.check_authenticity()
-    except: pass # 靜默降級
+    except Exception:
+        authenticator = None
 
 # --- 側邊欄邏輯 ---
 with st.sidebar:
@@ -88,15 +136,12 @@ with st.sidebar:
 
     st.markdown("---")
     st.title("⚙️ 工程設定")
-    
-    def sync_api_key(): st.session_state.api_key = st.session_state.temp_api_key
-
-    st.text_input("API Key", type="password", value=st.session_state.api_key, key="temp_api_key", on_change=sync_api_key)
-    
-    cur_def = st.secrets.get("default_model", "gemini-1.5-flash")
-    try: d_idx = st.session_state.available_models.index(cur_def)
-    except: d_idx = 0
-    selected_model = st.selectbox("選擇 AI 大腦", options=st.session_state.available_models, index=d_idx)
+    if runtime_config["ready"]:
+        st.success("Secrets 設定已載入。")
+        st.text_input("API Key", type="password", value=runtime_config["api_key"], disabled=True)
+        st.text_input("AI 模型", value=runtime_config["model"], disabled=True)
+    else:
+        st.error(runtime_config["error"])
 
 # --- 核心 AI 邏輯 ---
 def clean_ai_response(raw):
@@ -105,14 +150,34 @@ def clean_ai_response(raw):
     res = re.sub(r'```[a-zA-Z]*\n?|```', '', res)
     return res.strip()
 
+
+def validate_culinary_intent(text):
+    """Return a blocking message when input is unrelated, abusive, or prompt-injection-like."""
+    normalized = text.strip().lower()
+    if not normalized:
+        return "請先提供食材。"
+
+    if any(keyword.lower() in normalized for keyword in BLOCKED_KEYWORDS):
+        return "輸入內容包含與料理無關或不適合處理的主題，請改為提供食材或烹飪需求。"
+
+    if any(re.search(pattern, normalized, flags=re.IGNORECASE) for pattern in JAILBREAK_PATTERNS):
+        return "輸入內容看起來像是在改寫系統規則，請只提供食材或料理偏好。"
+
+    has_culinary_keyword = any(keyword.lower() in normalized for keyword in CULINARY_KEYWORDS)
+    has_separator_list = bool(re.search(r"[,，、\n]", text)) and len(text.strip()) >= 2
+    if not has_culinary_keyword and not has_separator_list:
+        return "目前只支援食材與烹飪相關內容，請輸入冰箱裡的食材。"
+
+    return ""
+
 def identify_ingredients(image_bytes):
     """第一階段：大廚視覺辨識"""
     prompt = "你是一位星級創意大廚。請掃描照片並直接列出看到的食材，以逗號分隔。嚴禁廢話與思考過程。"
     try:
-        client = OpenAI(api_key=st.session_state.api_key, base_url=DEFAULT_BASE_URL)
+        client = OpenAI(api_key=runtime_config["api_key"], base_url=DEFAULT_BASE_URL)
         encoded = base64.b64encode(image_bytes).decode("utf-8")
         resp = client.chat.completions.create(
-            model=selected_model,
+            model=runtime_config["model"],
             messages=[{"role": "system", "content": prompt}, {"role": "user", "content": [{"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded}"}}]}],
         )
         return clean_ai_response(resp.choices[0].message.content).replace('\n', ', ')
@@ -138,28 +203,47 @@ def get_recipes(ingredients, is_premium):
       ]
     }}"""
     try:
-        client = OpenAI(api_key=st.session_state.api_key, base_url=DEFAULT_BASE_URL)
+        block_reason = validate_culinary_intent(ingredients)
+        if block_reason:
+            return {"error": block_reason}
+
+        client = OpenAI(api_key=runtime_config["api_key"], base_url=DEFAULT_BASE_URL)
         resp = client.chat.completions.create(
-            model=selected_model,
+            model=runtime_config["model"],
             messages=[{"role": "system", "content": instruction}, {"role": "user", "content": f"食材：{ingredients}"}],
             response_format={"type": "json_object"}
         )
         raw = clean_ai_response(resp.choices[0].message.content)
         match = re.search(r'(\{.*\})', raw, re.DOTALL)
-        return json.loads(match.group(1)) if match else None
-    except: return None
+        if not match:
+            return {"error": "AI 回傳格式不完整，沒有取得可解析的 JSON。"}
+
+        parsed = json.loads(match.group(1))
+        if not isinstance(parsed, dict) or not isinstance(parsed.get("recipes"), list):
+            return {"error": "AI 回傳 JSON 缺少 recipes 清單。"}
+
+        return parsed
+    except Exception as e:
+        return {"error": f"食譜生成失敗：{str(e)}"}
 
 # --- UI 介面 ---
 st.title("🍳 冰箱大轉盤")
 st.caption("AI 驅動的星級剩食料理助手")
 
+if not runtime_config["ready"]:
+    st.error(runtime_config["error"])
+    st.info("本專案現在以 secrets 檔案作為主要設定來源，必要欄位為 api_key 與 model。")
+
 with st.expander("📸 第一步：拍照辨識食材", expanded=False):
     photo = st.camera_input("拍照")
     if photo:
         if st.button("🔍 讓大廚清點食材", use_container_width=True):
-            with st.spinner("👨‍🍳 大廚清點中..."):
-                st.session_state["ingredients_input"] = identify_ingredients(photo.getvalue())
-                st.rerun()
+            if not runtime_config["ready"]:
+                st.error(runtime_config["error"])
+            else:
+                with st.spinner("👨‍🍳 大廚清點中..."):
+                    st.session_state["ingredients_input"] = identify_ingredients(photo.getvalue())
+                    st.rerun()
 
 st.markdown("---")
 
@@ -187,12 +271,14 @@ c2.button("🧹 清空清單", on_click=clr, use_container_width=True)
 
 # 料理生成區
 if st.button("🔥 第三步：開始料理轉盤！", type="primary", use_container_width=True):
-    if not st.session_state.api_key:
-        st.warning("🔑 請先至左側邊欄設定 API Key！")
+    if not runtime_config["ready"]:
+        st.error(runtime_config["error"])
     elif ingredients.strip():
         with st.spinner("👨‍🍳 大廚正在廚房忙碌中..."):
             result = get_recipes(ingredients, is_mem)
-            if result:
+            if result and result.get("error"):
+                st.warning(result["error"])
+            elif result:
                 st.balloons()
                 with st.expander("🧠 大廚的內心獨白", expanded=True):
                     st.markdown(result.get("chef_thinking", ""))

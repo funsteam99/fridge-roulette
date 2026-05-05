@@ -1,49 +1,76 @@
-# 🍳 冰箱大轉盤 (Fridge Roulette) - v8.1 智慧安全辨識版
+# 🍳 冰箱大轉盤 (Fridge Roulette) - v10.2 Strict & Robust Edition
 
-![AI-Powered](https://img.shields.io/badge/AI-Gemma%20%2F%20Gemini-orange)
+![AI-Powered](https://img.shields.io/badge/AI-Gemini-orange)
 ![Streamlit](https://img.shields.io/badge/UI-Streamlit-blue)
-![PWA](https://img.shields.io/badge/Mobile-PWA%20Ready-green)
 ![Security](https://img.shields.io/badge/Security-Intent%20Filtered-red)
 
-> **「大廚只專注於美味，其餘雜訊一概不理。」** —— 具備自動意圖防護的 AI 廚房助手
+> **「大廚只專注於美味，其餘雜訊一概不理。」** —— 具備料理意圖過濾的 AI 廚房助手
 
-本專案是一個深度整合 Google 多模態模型與 Streamlit 的智慧料理應用。透過 **v8.1 安全辨識流程**，系統不僅能從照片與文字中發掘料理靈感，更能有效過濾無關或惡意輸入，確保服務的穩定與安全。
+本專案是一個整合 Google Gemini OpenAI-compatible API 與 Streamlit 的智慧料理應用。使用者可以拍照辨識食材、手動微調清單，或使用快速標籤加入常見食材，再由 AI 產生三道結構化料理建議。
 
-## ✨ v8.1 重大更新與功能亮點
+## ✨ 功能亮點
 
-- **🛡️ 料理意圖過濾 (Culinary Intent Filtering)**：
-  - **自動偵測**：系統會自動判斷輸入內容是否與「食材」或「烹飪」相關。
-  - **濫用防護**：有效攔截政治、暴力、仇恨言論或惡意程式碼等不當輸入。
-  - **防範越獄 (Anti-Jailbreak)**：內建保護機制，拒絕執行嘗試改變大廚人格或繞過安全規範的指令。
-- **👨‍🍳 兩階段視覺工作流 (Two-Stage Workflow)**：
-  - **Step 1 視覺清點**：利用多模態模型掃描照片，自動提取食材列表。
-  - **Step 2 人工微調**：結果回填至文字框，支援手動增刪與標籤補充。
-  - **Step 3 創意料理**：根據最終確認清單生成三道結構化食譜。
-- **🧠 大廚人格一致性**：無論是影像辨識還是食譜生成，皆維持一致的星級大廚專業語氣。
-- **📱 極簡 PWA 體驗**：支援「加入主畫面」，提供全螢幕運行的原生 APP 感。
-- **⚡ 系統健壯性**：具備強效 JSON 解析與 `<thought>` 標籤過濾技術，確保介面呈現完美結果。
+- **🛡️ 料理意圖過濾 (Culinary Intent Filtering)**
+  - 自動檢查輸入是否與食材或烹飪相關。
+  - 攔截明顯的政治、暴力、仇恨、惡意程式與其他非料理用途輸入。
+  - 偵測常見 prompt injection / jailbreak 字句，避免使用者嘗試改寫系統規則。
+- **👨‍🍳 兩階段視覺工作流 (Two-Stage Workflow)**
+  - Step 1：使用相機拍照，透過多模態模型清點食材。
+  - Step 2：將辨識結果回填至文字框，支援手動增刪與快速標籤補充。
+  - Step 3：根據最終食材清單生成三道料理。
+- **🧠 大廚人格一致性**
+  - 影像辨識與食譜生成都維持星級大廚語氣。
+- **👤 會員模式**
+  - 若設定 Google OAuth 並成功登入，食譜會額外顯示營養分析與養生建議。
+  - 未設定 OAuth 時自動以訪客模式運行，不影響核心食譜功能。
+- **⚙️ Secrets-first 設定**
+  - API key 與模型名稱必須由 Streamlit secrets 指定。
+  - 專案不再內建預設模型；缺少 secrets 時會在 UI 顯示錯誤說明。
 
-## 🚀 雲端部署 (Deployment)
+## 🚀 部署與設定
 
-本專案已針對 **Streamlit Community Cloud** 完美優化。
+本專案可部署在 Streamlit Community Cloud，也可在本機執行。
 
-### 雲端 Secret 設定
-請於後台設定以下變數以實現自動載入：
+### 必要 Secrets
+
+請在 Streamlit Cloud Secrets 或本機 `.streamlit/secrets.toml` 設定：
+
 ```toml
 api_key = "YOUR_GOOGLE_API_KEY"
-default_model = "gemini-1.5-flash"
+model = "gemini-2.5-flash"
 ```
 
-### 手機安裝方式
-- **iOS (Safari)**：分享 > 「加入主畫面」。
-- **Android (Chrome)**：選單 > 「安裝應用程式」。
+若缺少 secrets 檔案，或缺少 `api_key` / `model` 任一欄位，應用程式會停止 AI 功能並顯示設定錯誤。
+
+### 選用 Google OAuth
+
+若需要會員模式，額外加入：
+
+```toml
+[google_auth]
+cookie_key = "YOUR_COOKIE_KEY"
+client_id = "YOUR_GOOGLE_CLIENT_ID"
+client_secret = "YOUR_GOOGLE_CLIENT_SECRET"
+redirect_uri = "YOUR_REDIRECT_URI"
+```
+
+OAuth 需要搭配 `google_credentials.json`。未設定時會自動降級為訪客模式。
 
 ## 🛠️ 技術架構
 
-- **前端介面**: Streamlit (自定義 CSS 注入)
-- **AI 引擎**: Google Gemma 4 / Gemini 1.5 系列
-- **安全機制**: 內建系統級意圖分析與內容審核邏輯
-- **資料處理**: 容錯 JSON 解析引擎 + Regex 內容清洗
+- **前端介面**：Streamlit + 自定義 CSS
+- **AI 引擎**：Google Gemini OpenAI-compatible endpoint
+- **安全機制**：本機料理意圖檢查、濫用關鍵字阻擋、prompt injection 字句偵測、系統提示約束
+- **資料處理**：JSON object response、Regex 清除 code fences 與 `<thought>` 標籤
+- **設定來源**：Streamlit secrets
+
+## ▶️ 本機執行
+
+```bash
+pip install -r requirements.txt
+streamlit run app.py
+```
 
 ---
-**讓每一份剩食，在安全且智慧的環境中重獲新生！** 🍷🍽️
+
+**讓每一份剩食，在安全且智慧的環境中重獲新生。**
