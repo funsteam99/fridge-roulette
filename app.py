@@ -46,16 +46,62 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- CSS 美化 (PWA 感) ---
+# --- CSS 美化 ---
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-    .stApp { bottom: 50px; }
-    .stButton>button { border-radius: 12px; height: 3.5em; font-weight: 600; transition: 0.3s; }
+    .block-container {
+        max-width: 760px;
+        padding-top: 1.25rem;
+        padding-bottom: 3rem;
+    }
+    .stButton>button {
+        border-radius: 12px;
+        min-height: 3.25rem;
+        height: auto;
+        font-weight: 600;
+        line-height: 1.25;
+        white-space: normal;
+        transition: 0.2s;
+    }
     .stButton>button:hover { border-color: #ff4b4b; color: #ff4b4b; }
-    .stTextArea textarea { border-radius: 10px; }
+    .stTextArea textarea {
+        border-radius: 10px;
+        font-size: 1rem;
+        line-height: 1.45;
+    }
+    [data-testid="stExpander"] details {
+        border-radius: 12px;
+    }
+    [data-testid="stVerticalBlockBorderWrapper"] {
+        border-radius: 14px;
+    }
+    h1, h2, h3 {
+        line-height: 1.2;
+    }
+    @media (max-width: 640px) {
+        .block-container {
+            padding-left: 1rem;
+            padding-right: 1rem;
+            padding-top: 0.75rem;
+        }
+        h1 {
+            font-size: 1.8rem;
+        }
+        h3 {
+            font-size: 1.15rem;
+        }
+        .stButton>button {
+            min-height: 3rem;
+            padding-left: 0.75rem;
+            padding-right: 0.75rem;
+        }
+        [data-testid="stTextArea"] textarea {
+            min-height: 140px;
+        }
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -233,6 +279,33 @@ def get_recipes(ingredients, is_premium):
     except Exception as e:
         return {"error": f"食譜生成失敗：{str(e)}"}
 
+
+def render_recipe_card(recipe, index, is_premium):
+    with st.container(border=True):
+        st.caption(f"料理 {index + 1}")
+        st.subheader(recipe.get("dish_name") or "未命名料理")
+
+        style = recipe.get("style")
+        if style:
+            st.caption(f"風格：{style}")
+
+        ingredients_needed = recipe.get("ingredients_needed") or []
+        if ingredients_needed:
+            st.markdown("**食材**")
+            st.write(", ".join(str(item) for item in ingredients_needed))
+
+        steps = recipe.get("steps") or []
+        if steps:
+            st.markdown("**步驟**")
+            for step_index, step in enumerate(steps, start=1):
+                st.write(f"{step_index}. {step}")
+
+        if is_premium and recipe.get("nutrition"):
+            st.info(f"🥗 **營養分析**\n\n{recipe['nutrition']}")
+
+        if recipe.get("chef_secret"):
+            st.warning(f"💡 **秘訣**\n\n{recipe['chef_secret']}")
+
 # --- UI 介面 ---
 st.title("🍳 冰箱大轉盤")
 st.caption("AI 驅動的星級剩食料理助手")
@@ -289,17 +362,9 @@ if st.button("🔥 第三步：開始料理轉盤！", type="primary", use_conta
                 st.balloons()
                 with st.expander("🧠 大廚的內心獨白", expanded=True):
                     st.markdown(result.get("chef_thinking", ""))
-                
-                cols = st.columns(3)
-                for i, r in enumerate(result.get("recipes", [])[:3]):
-                    with cols[i]:
-                        st.markdown(f"### 🍽️ {r.get('dish_name')}")
-                        st.caption(f"風格：{r.get('style')}")
-                        st.write("**🛒 食材**\n" + ", ".join(r.get('ingredients_needed', [])))
-                        st.write("**📝 步驟**")
-                        for idx, s in enumerate(r.get('steps', [])): st.write(f"{idx+1}. {s}")
-                        if is_mem and r.get('nutrition'): st.info(f"🥗 **營養分析**\n\n{r['nutrition']}")
-                        st.warning(f"💡 **秘訣**\n\n{r.get('chef_secret')}")
+
+                for i, recipe in enumerate(result.get("recipes", [])[:3]):
+                    render_recipe_card(recipe, i, is_mem)
     else: st.warning("☝️ 請先提供食材！")
 
 st.markdown("---")
