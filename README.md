@@ -37,10 +37,12 @@
 
 ```toml
 api_key = "YOUR_GOOGLE_API_KEY"
-model = "gemini-2.5-flash"
+default_model = "models/gemma-4-31b-it"
 ```
 
-若缺少 secrets 檔案，或缺少 `api_key` / `model` 任一欄位，應用程式會停止 AI 功能並顯示設定錯誤。
+若缺少 secrets 檔案，或缺少 `api_key` / `default_model` 任一欄位，應用程式會停止 AI 功能並顯示設定錯誤。
+
+`model` 也可作為模型欄位名稱使用；若同時設定 `model` 與 `default_model`，系統會優先使用 `model`。
 
 ### 選用 Google OAuth
 

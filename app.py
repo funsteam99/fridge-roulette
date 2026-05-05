@@ -11,7 +11,7 @@ except ImportError:
 
 # --- 常數設定 ---
 DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
-REQUIRED_SECRET_KEYS = ("api_key", "model")
+MODEL_SECRET_KEYS = ("model", "default_model")
 CULINARY_KEYWORDS = {
     "食材", "料理", "烹飪", "煮", "炒", "煎", "烤", "蒸", "燉", "炸", "拌", "湯", "飯", "麵",
     "菜", "肉", "魚", "蛋", "豆腐", "蔥", "洋蔥", "高麗菜", "馬鈴薯", "吐司", "牛奶", "起司",
@@ -69,14 +69,21 @@ def read_secret(key, default=None):
 
 def validate_runtime_config():
     try:
-        missing = [key for key in REQUIRED_SECRET_KEYS if not st.secrets.get(key)]
+        api_key = st.secrets.get("api_key")
+        model = next((st.secrets.get(key) for key in MODEL_SECRET_KEYS if st.secrets.get(key)), None)
     except Exception:
         return {
             "ready": False,
             "api_key": "",
             "model": "",
-            "error": "找不到 Streamlit secrets 設定。請建立 .streamlit/secrets.toml，或在 Streamlit Cloud Secrets 加入 api_key 與 model。",
+            "error": "找不到 Streamlit secrets 設定。請建立 .streamlit/secrets.toml，或在 Streamlit Cloud Secrets 加入 api_key 與 default_model。",
         }
+
+    missing = []
+    if not api_key:
+        missing.append("api_key")
+    if not model:
+        missing.append("default_model 或 model")
 
     if missing:
         return {
@@ -88,8 +95,8 @@ def validate_runtime_config():
 
     return {
         "ready": True,
-        "api_key": st.secrets["api_key"],
-        "model": st.secrets["model"],
+        "api_key": api_key,
+        "model": model,
         "error": "",
     }
 
@@ -232,7 +239,7 @@ st.caption("AI 驅動的星級剩食料理助手")
 
 if not runtime_config["ready"]:
     st.error(runtime_config["error"])
-    st.info("本專案現在以 secrets 檔案作為主要設定來源，必要欄位為 api_key 與 model。")
+    st.info("本專案現在以 secrets 檔案作為主要設定來源，必要欄位為 api_key 與 default_model。")
 
 with st.expander("📸 第一步：拍照辨識食材", expanded=False):
     photo = st.camera_input("拍照")
